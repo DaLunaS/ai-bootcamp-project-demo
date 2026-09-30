@@ -1,0 +1,11 @@
+{
+  "name": "@meal-calendar/backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "jest --runInBand"
+  },
+  "devDependencies": {
+    "jest": "^30.5.2"
+  }
+}
