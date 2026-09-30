@@ -10,7 +10,9 @@ function loadInventory(filePath) {
     if (error.code === 'ENOENT') return [];
     throw error;
   }
-  return JSON.parse(contents);
+  const lots = JSON.parse(contents);
+  if (!Array.isArray(lots)) throw new TypeError('Inventory must be an array');
+  return lots;
 }
 
 function saveInventory(filePath, lots) {

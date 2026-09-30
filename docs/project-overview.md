@@ -40,9 +40,19 @@ For example, if an ingredient's base shelf life is 10 days, with a fridge multip
 The monorepo is organized as:
 
 - `packages/frontend/`: planned React-based web application
-- `packages/backend/`: backend ingredient freshness logic and JSON-file inventory persistence; Express.js API is planned
+- `packages/backend/`: ingredient freshness logic, JSON-file persistence, and a minimal Express.js inventory API
 
-For the demo, inventory is stored in a JSON file instead of a database so it can survive process restarts. The backend currently exposes file save/load functions; it does not yet provide an API, ingredient forms, or a configured production data-file location. Runtime inventory data should not be committed. The frontend package is not yet scaffolded. The stack below describes the intended direction; only the initial backend testing tools are installed so far.
+For the demo, inventory is stored in a JSON file instead of a database so it can survive process restarts. The backend provides `GET /api/inventory` to list purchased lots and `POST /api/inventory` to add one. A new lot requires an ingredient name, positive base shelf life and storage multipliers, a freeze-suitability flag, a positive quantity in liters/kilograms/grams/units, a purchase timestamp, and an initial storage state (`ambient`, `fridge`, or `freezer`); a packaging expiration timestamp is optional. The API assigns an ID and begins storage history at purchase. Invalid lots receive HTTP 400; unreadable or corrupted JSON is not silently replaced.
+
+The ingredient catalog is stored separately in `packages/backend/data/ingredients.json` by default (also ignored by Git). `GET /api/ingredients` lists reusable definitions, and `POST /api/ingredients` saves a uniquely named ingredient with its measurement unit, shelf-life multipliers, freeze suitability, and nutrition (calories, carbs, protein) for a stated positive quantity and compatible unit. A new inventory lot may use an `ingredientId` instead of an inline ingredient; the lot stores that ID and a snapshot of the definition so recorded freshness remains stable. An unknown ID returns 404, and incompatible inventory units return 400. Existing inline-ingredient purchases remain supported. Catalog editing is not implemented yet.
+
+Recipes are stored in `packages/backend/data/recipes.json` by default (ignored by Git). `POST /api/recipes` accepts a unique name, a positive integer `yieldServings`, and a nonempty list of `{ "ingredientId": "<catalog ID>", "quantity": <positive number>, "unit": "grams|kilograms|liters|units" }`. Each catalog ingredient may appear only once; countable quantities must be whole. The API calculates and saves calories, carbs, and protein **per serving** from ingredient nutrition reference quantities, converting grams and kilograms where needed. `GET /api/recipes` lists recipes, and `GET /api/recipes/:id` retrieves one. Invalid or incompatible inputs return 400; unknown ingredients and recipes return 404. Recipes are not yet scheduled on a calendar, and there are no preloaded example ingredients or recipes.
+
+`POST /api/inventory/:id/storage` accepts `{ "storage": "freezer", "at": "<ISO timestamp>" }` and appends a chronological storage change for an unexpired lot; nonfreezable ingredients cannot move to the freezer. `GET /api/inventory/:id/freshness?at=<timestamp>` reports `{ "progress": <used-lifetime fraction>, "expired": <boolean> }` at or after purchase, including the effects of prior storage changes and fixed packaging dates. Unknown lots return 404. Inventory editing and the frontend remain future work.
+
+`POST /api/inventory/:id/consume` accepts `{ "quantity": <positive number>, "unit": "grams|kilograms|liters|units", "at": "<ISO timestamp>" }`. It deducts from an existing lot when the ingredient is still fresh at that time; grams and kilograms are converted as needed, liters require matching units, and countable units must be whole. It rejects insufficient stock or incompatible units without changing the JSON file. The lot remains listed at quantity zero after complete consumption. This first slice updates the current remaining quantity, but does not yet record a consumption history or support reconstructing past stock levels.
+
+By default, the running API uses `packages/backend/data/inventory.json` (ignored by Git). For the demo, `INVENTORY_FILE` can select another file and `PORT` can change the default port of 3000. The stack below describes the intended direction; frontend tooling is not installed yet.
 
 ## Technology Stack
 
@@ -72,7 +82,7 @@ For the demo, inventory is stored in a JSON file instead of a database so it can
 
 ## Getting Started
 
-The backend test runner is available: install dependencies at the repository root with `npm install`, then run the current backend tests with `npm test`. The API and frontend cannot be started yet; start and lint commands should be documented after they are added.
+Install dependencies at the repository root with `npm install`, run backend tests with `npm test`, and start the backend API with `npm start --workspace packages/backend`. The frontend cannot be started yet; lint commands should be documented after they are added.
 
 ## Development Philosophy
 

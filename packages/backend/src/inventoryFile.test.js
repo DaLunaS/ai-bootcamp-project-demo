@@ -36,4 +36,11 @@ describe('JSON inventory file', () => {
 
     expect(() => loadInventory(filePath)).toThrow();
   });
+
+  test('rejects JSON that does not contain an inventory list', () => {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, '{"lots":[]}');
+
+    expect(() => loadInventory(filePath)).toThrow('Inventory must be an array');
+  });
 });
