@@ -1,3 +1,6 @@
 node_modules/
 coverage/
 packages/backend/data/*.json
+packages/frontend/dist/
+playwright-report/
+test-results/

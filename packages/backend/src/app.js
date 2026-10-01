@@ -6,6 +6,14 @@ const { calculateFreshness } = require('./freshness');
 
 const UNITS = new Set(['liters', 'kilograms', 'grams', 'units']);
 const STORAGE = new Set(['ambient', 'fridge', 'freezer']);
+const MEALS = ['breakfast', 'lunch', 'dinner'];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function calendarDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value ? date : null;
+}
 
 function amountInLotUnits(quantity, unit, lotUnit) {
   if (unit === lotUnit) return quantity;
@@ -80,6 +88,7 @@ function createApp({ inventoryPath }) {
   app.use(express.json());
   const ingredientPath = path.join(path.dirname(inventoryPath), 'ingredients.json');
   const recipePath = path.join(path.dirname(inventoryPath), 'recipes.json');
+  const calendarPath = path.join(path.dirname(inventoryPath), 'calendar.json');
 
   app.get('/api/ingredients', (_req, res) => {
     res.json(loadInventory(ingredientPath));
@@ -142,6 +151,51 @@ function createApp({ inventoryPath }) {
     const recipe = { id: randomUUID(), ...req.body, name, nutritionPerServing };
     saveInventory(recipePath, [...recipes, recipe]);
     return res.status(201).json(recipe);
+  });
+
+  app.get('/api/calendar', (req, res) => {
+    const monday = calendarDate(req.query.weekStart);
+    if (!monday || monday.getUTCDay() !== 1) {
+      return res.status(400).json({ error: 'A valid Monday weekStart is required' });
+    }
+    const entries = loadInventory(calendarPath).filter(({ date }) => {
+      const day = calendarDate(date);
+      return day && day >= monday && day < new Date(monday.getTime() + 7 * DAY_MS);
+    });
+    entries.sort((a, b) => a.date.localeCompare(b.date) || MEALS.indexOf(a.meal) - MEALS.indexOf(b.meal));
+    return res.json(entries);
+  });
+
+  app.put('/api/calendar/:date/:meal', (req, res) => {
+    const { date, meal } = req.params;
+    const { recipeId, servings } = req.body || {};
+    if (!calendarDate(date) || !MEALS.includes(meal)
+      || typeof recipeId !== 'string' || !recipeId.trim()
+      || !Number.isInteger(servings) || servings <= 0) {
+      return res.status(400).json({ error: 'Invalid planned meal' });
+    }
+    const recipe = loadInventory(recipePath).find((item) => item.id === recipeId);
+    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+
+    const entries = loadInventory(calendarPath);
+    const index = entries.findIndex((entry) => entry.date === date && entry.meal === meal);
+    const planned = { date, meal, recipeId, servings };
+    if (index === -1) entries.push(planned);
+    else entries[index] = planned;
+    saveInventory(calendarPath, entries);
+    return res.status(index === -1 ? 201 : 200).json(planned);
+  });
+
+  app.delete('/api/calendar/:date/:meal', (req, res) => {
+    const { date, meal } = req.params;
+    if (!calendarDate(date) || !MEALS.includes(meal)) {
+      return res.status(400).json({ error: 'Invalid calendar slot' });
+    }
+    const entries = loadInventory(calendarPath);
+    const index = entries.findIndex((entry) => entry.date === date && entry.meal === meal);
+    if (index === -1) return res.status(404).json({ error: 'Planned meal not found' });
+    saveInventory(calendarPath, entries.filter((_item, position) => position !== index));
+    return res.status(204).send();
   });
 
   app.get('/api/inventory', (_req, res) => {

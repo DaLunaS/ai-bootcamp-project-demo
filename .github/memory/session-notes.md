@@ -1,5 +1,98 @@
 # Completed Session Notes
 
+### Critical browser journey coverage — 2026-09-30
+
+**What was accomplished**
+- Added a Playwright suite for ingredient creation, recording purchased inventory, scheduling/reloading a meal, replacing/removing a meal without disturbing other slots, and a retryable unavailable-calendar state. Each test uses an isolated in-browser API fixture; no real user inventory or calendar records are written.
+
+**Key findings and decisions**
+- Playwright Chromium CDN downloads timed out; the matching headless binary was reachable directly from Google storage and installed into Playwright's local cache. A first UI run failed in three scenarios due to an unbound request method in the test fixture (test code), not an app defect. Fixed the fixture and reran. Browser tests use a dedicated Vite port (5174); real backend integration remains covered by Jest/Supertest and is not exercised by these browser tests.
+
+**Outcomes**
+- `npm run test:ui`: 5/5 passed; `npm run test:ui -- --repeat-each=2`: 10/10 passed; `npm test`: 100 backend and 21 frontend tests passed; `npm run build` succeeded. Remaining UI gaps: real backend/browser integration, shelf freezer toggle, recipe creation/editing, and shopping warnings when implemented.
+
+---
+
+### Persistent weekly meal scheduling — 2026-09-30
+
+**What was accomplished**
+- Added week-scoped calendar GET plus validated meal-slot PUT/DELETE backed by ignored JSON. On the seven-day board users can choose a saved recipe and serving count, edit/remove it, and navigate earlier or later weeks; cards show calories, carbs and protein per serving.
+
+**Key findings and decisions**
+- RED backend routes returned 404; GREEN: persistence, date/meal/recipe validation, replacement and deletion passed. RED frontend lacked interactive slots; GREEN: plan and error states passed. Found and fixed a serving-input regression where clearing default 2 and typing 3 sent 23.
+- Scheduling does not alter Shelf inventory and does not yet calculate shortages or expiration warnings; document this as an explicit limitation, not a safety guarantee.
+
+**Outcomes**
+- `npm test`: 100 backend tests and 21 frontend tests passed; `npm run build` passed. Manual browser verification added and removed a temporary plan; calendar and inventory were empty afterward. No Playwright tests authored or run in TDD mode.
+
+---
+
+### Shelf inventory frontend — 2026-09-30
+
+**What was accomplished**
+- Added a Shelf tab to display purchased inventory lots, remaining quantity and storage state, an estimated used-shelf-life bar, a catalog-backed add-purchase form and an eligible-item freezer toggle. Loading, empty and failure states distinguish owned inventory from the ingredient catalog.
+
+**Key findings and decisions**
+- The inventory API initially returned zero purchases; no demo purchases were invented. RED tests failed for missing Shelf navigation/form/toggle, a UTC-midnight date display mismatch, and misleading low progress on an item expired by its packaging date. Each was addressed while preserving existing API behavior. The progress bar is only a planning estimate.
+
+**Outcomes**
+- `npm test`: 85 backend and 16 frontend tests passed; `npm run build` succeeded. Browser showed an empty Shelf and usable form without recording a purchase. No Playwright UI tests authored or run in TDD mode.
+
+---
+
+### Recipe library frontend — 2026-09-30
+
+**What was accomplished**
+- Added a Recipes navigation tab and read-only API-backed library displaying ingredient names and quantities, servings, estimated per-serving macros, and links to web inspiration; includes loading, empty, and retryable error states.
+
+**Key findings and decisions**
+- The recipe API and Vite proxy worked; the reason the user could not see the 26 saved recipes was the absent frontend view. RED: three component tests failed on the missing Recipes button; GREEN: tab and library added without backend changes.
+
+**Outcomes**
+- `npm test`: 85 backend tests and 10 frontend component tests passed; `npm run build` succeeded. Manual browser validation showed all 26 saved recipes. No Playwright tests were created or run in TDD mode.
+
+---
+
+### Local web-inspired recipe import — 2026-09-30
+
+**What was accomplished**
+- Added 26 independently adapted meal plans via `POST /api/recipes`, each referencing only previously imported catalog ingredients and a related Good Food recipe or collection link. Includes breakfasts, lunches and dinners; no copied cooking instructions.
+
+**Key findings and decisions**
+- The API computes per-serving macros from the catalog. Dry pantry ingredients are entered by uncooked weight; ingredient and nutrition totals are approximate and may differ from linked source recipes. The local recipes are ignored JSON, not versioned seed data; no recipe frontend exists yet.
+
+**Outcomes**
+- Preflight confirmed every ingredient reference and compatible unit; GET through the frontend proxy returned 26 distinct recipes, all with nonnegative finite nutrition values and links. No code changes or application tests required for this API-only data import.
+
+---
+
+### Local ingredient catalog import — 2026-09-30
+
+**What was accomplished**
+- Imported 68 distinct common foods into the running catalog using `POST /api/ingredients`; 69 entries now exist locally including a previously saved Carrots record that was left untouched.
+
+**Key findings and decisions**
+- USDA FoodData Central SR Legacy 2018 CSV supplied calories, carbohydrates and protein per 100 g. Imported records include USDA FDC IDs and descriptions; one egg and milk volume use documented approximate conversion assumptions. Storage durations/multipliers are conservative demo planning estimates, informed by FoodSafety.gov's cold-storage guidance, **not** food-safety or use-by dates.
+
+**Outcomes**
+- All 68 source records passed nutrient-field validation before the first API write. GET `/api/ingredients` and the browser showed 69 total; data is in ignored local JSON, so a fresh clone has no preloaded catalog. No source code changed for this import.
+
+---
+
+### First frontend dashboard and ingredient catalog — 2026-09-30
+
+**What was accomplished**
+- Added a Vite/React frontend workspace with a seven-day dashboard, empty breakfast/lunch/dinner slots, and a backend-connected ingredient catalog and add form. Bundled fonts locally and added frontend tests/build to root scripts.
+
+**Key findings and decisions**
+- Asked about landing page, flow, weekly board, meal cards, and style; the user was unavailable to answer. Used provisional choices (dashboard first, horizontal week on mobile, warm palette, empty data) documented in the overview.
+- RED tests caught missing board, missing catalog UI, and missing first-visit CTA. During GREEN, explicitly configuring RTL cleanup fixed Vitest test isolation. The local browser displayed the board, empty catalog, and creation form without seeding data.
+
+**Outcomes**
+- `npm test`: 85 backend tests and 7 frontend tests passed; `npm run build` succeeded. `npm audit`: 0 vulnerabilities. No Playwright UI tests authored or run in this mode; no lint script yet.
+
+---
+
 ### Catalog-based recipes and per-serving nutrition — 2026-09-30
 
 **What was accomplished**

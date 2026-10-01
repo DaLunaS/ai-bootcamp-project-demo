@@ -1,8 +1,15 @@
 {
   "name": "weekly-meal-calendar",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
-    "test": "npm test --workspace packages/backend"
+    "test": "npm test --workspace packages/backend && npm test --workspace packages/frontend",
+    "build": "npm run build --workspace packages/frontend",
+    "test:ui": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
   }
 }
